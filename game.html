@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Päättötyö 2019</title>
+<script type="text/javascript" src="player_scripts.js"></script>
+<script type="text/javascript" src="menu_scripts.js"></script>
+<script type="text/javascript" src="draw_scripts.js"></script>
+<script type="text/javascript" src="level_scripts.js"></script>
+<script type="text/javascript" src="obstacle_scripts.js"></script>
+<script type="text/javascript" src="collision_scripts.js"></script>
+<script type="text/javascript" src="accurate_interval.js"></script>
+<link href="https://fonts.googleapis.com/css?family=Roboto" rel="stylesheet">
+<style>
+
+body {
+	overflow: hidden;
+}
+
+</style>
+</head>
+<body>
+
+<canvas id="myCanvas" width="1920" height="1080" style="width:100%; height:100%; position:absolute; top: 0px; left: 0px; background-color: #000000;"></canvas>
+
+<script>
+
+var canvas = document.getElementById("myCanvas");
+var ctx = canvas.getContext("2d");
+
+var window_canvas_w = window.innerWidth;
+var window_canvas_h = window.innerHeight;
+if (window_canvas_w < 700){
+	window_canvas_w += 700;
+}
+if (window_canvas_h < 480){
+	window_canvas_h += 480;
+}
+ctx.canvas.width  = window_canvas_w;
+ctx.canvas.height = window_canvas_h;
+
+var global_start_game = false;
+var global_level_end = false;
+var global_menu = "start";
+var global_level = 0;
+var global_game_title = "Hits & Bits";
+var global_timer;
+var global_game_pause = false;
+var global_game_over = false;
+var global_level_complete = false;
+var global_pause_switch = false;
+var global_pause_time = 0;
+var global_easy_mode = false;
+
+var menu_position = 0;
+var menu_position_animation = 0;
+var menu_x = canvas.width/6;
+var menu_y = canvas.height/6;
+var menu_x_initial = menu_x;
+var menu_y_initial = menu_y;
+var menu_text_size = 32;
+var menu_options_start = ["Play","Options"];
+var menu_options_play = ["Caustic Hell Yes!","Dystopian","Finale","Back"];
+var menu_options_edit = ["Easy Mode","This option does literally nothing.","Back"];
+var menu_bounce = [0,0,0,0,0,0,0,0];
+var menu_select = false;
+var menu_goto = -1;
+var menu_select_pressed = true;
+var menu_end = false;
+var menu_end_bounce = 0;
+var menu_end_friction = 7;
+var menu_end_player_animation = 700;
+var menu_end_title_bounce = 0;
+var menu_end_fade = 1;
+var menu_music_isPlaying = -10;
+var menu_title_bounce = 48;
+var menu_title_y = 64;
+
+var bullet_amount = 0;
+var bullet_colour = "#f20080";
+var bullet_colour_warning = "rgba(242, 0, 128, 0.3)";
+var bullet_type = [];
+var bullet_width = [];
+var bullet_height = [];
+var bullet_rotation = [];
+var bullet_x = [];
+var bullet_y = [];
+var bullet_speed = [];
+var bullet_hp = [];
+
+var effect_type = [];
+var effect_length = [];
+var effect_colour = [];
+var effect_timer = [];
+
+var level_title_transition = -64;
+var level_attempt_transition = -64;
+var level_begin = -1;
+var level_title_pause = 0;
+var level_attempt = 1;
+var level_songs = ["caustichellyes.mp3","dystopian.mp3","itsover.mp3"];
+var level_song_isPlaying = false;
+var level_song_started = false;
+var level_song;
+var level_bullet_timer = -1;
+var level_bullet_timer_tick = 0;
+var level_timer_started = false;
+var level_pause_text_y = 0;
+var level_respawn_time = 0;
+var level_respawn_time_tick = 0;
+var level_rank = "";
+
+var sound_menu_move = new Audio("tick.wav"); sound_menu_move.preload = true;
+var sound_menu_select = new Audio("select.wav"); sound_menu_select.preload = true;
+var sound_menu_start = new Audio("startup.mp3"); sound_menu_start.preload = true;
+var sound_menu_music = new Audio("menuloop.mp3"); sound_menu_music.preload = true;
+var sound_pause_music = new Audio("pauseloop.mp3"); sound_pause_music.preload = true; sound_pause_music.volume = 0;
+var sound_player_hit = new Audio("hit.wav"); sound_player_hit.preload = true;
+var sound_player_die = new Audio("crash.mp3"); sound_player_die.preload = true;
+var sound_level_complete = new Audio("victory-jingle.mp3"); sound_level_complete.preload = true; sound_level_complete.volume = 1;
+var sound_pause_isPlaying = false;
+
+var player_x = 678;
+var player_y = 478;
+var player_size = 32;
+var player_size_x = player_size;
+var player_size_y = player_size;
+var player_speed = 10;
+var player_friction = 0.3;
+var player_motion_x = 0;
+var player_motion_y = 0;
+var player_colour = "#00ffa0";
+var player_max_health = 3;
+var player_heal_time = 50;
+var player_health = player_max_health;
+var player_recover = 0;
+var player_death_animation_hasPlayed = false;
+var player_death_animation_pixel_x = [];
+var player_death_animation_pixel_y = [];
+var player_death_animation_pixel_h = [];
+var player_death_animation_pixel_v = [];
+var player_death_animation_pixel_r = [];
+var player_death_animation_pixel_s = [];
+
+var key_left_pressed = false;
+var key_right_pressed = false;
+var key_down_pressed = false;
+var key_up_pressed = false;
+var key_select_pressed = false;
+var key_escape_pressed = false;
+var key_enter_pressed = false;
+var key_left_id = 65;
+var key_right_id = 68;
+var key_up_id = 87;
+var key_down_id = 83;
+var key_select_id = 32;
+var key_escape_id = 27;
+var key_enter_id = 13;
+
+document.addEventListener("keydown", keyDownHandler, false);
+document.addEventListener("keyup", keyUpHandler, false);
+
+function keyDownHandler(e) {
+	if (e.keyCode == key_left_id) {
+		key_left_pressed = true;
+	}else if (e.keyCode == key_right_id) {
+		key_right_pressed = true;
+	}else if (e.keyCode == key_down_id) {
+		key_down_pressed = true;
+	}else if (e.keyCode == key_up_id) {
+		key_up_pressed = true;
+	}else if (e.keyCode == key_select_id) {
+		if (key_select_pressed == false){
+			key_select_pressed = true;
+		}
+	}else if (e.keyCode == key_escape_id) {
+		key_escape_pressed = true;
+	}else if (e.keyCode == key_enter_id) {
+		key_enter_pressed = true;
+	}
+}
+
+function keyUpHandler(e) {
+	if (e.keyCode == key_left_id) {
+		key_left_pressed = false;
+	}else if (e.keyCode == key_right_id) {
+		key_right_pressed = false;
+	}else if (e.keyCode == key_down_id) {
+		key_down_pressed = false;
+	}else if (e.keyCode == key_up_id) {
+		key_up_pressed = false;
+	}else if (e.keyCode == key_select_id) {
+		key_select_pressed = false;
+		menu_select_pressed = false;
+	}else if (e.keyCode == key_escape_id) {
+		key_escape_pressed = false;
+	}else if (e.keyCode == key_enter_id) {
+		key_enter_pressed = false;
+	}
+}
+
+function loop() {
+	ctx.clearRect(0,0,canvas.width,canvas.height);
+	
+	menu();
+	move();
+	level_handler();
+	bullet_handler();
+	collision_detection();
+	draw();
+	
+	requestAnimationFrame(loop);
+}
+loop();
+</script>
+</body>
+</html>
